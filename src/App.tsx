@@ -294,7 +294,7 @@ function BillOfSaleEditor() {
       }
 
       if (docId) {
-        const shareLink = `${window.location.origin}/${docId}`;
+        const shareLink = `https://manitoba-vehicle-bill-of-sale.vercel.app/${docId}`;
         const subject = encodeURIComponent('Manitoba Vehicle Bill of Sale - Please Review and Sign');
         const body = encodeURIComponent(`I've started a bill of sale for our vehicle transaction. Please tap the link below on your device to open it, review the details, and add your signature.\n\n${shareLink}`);
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
