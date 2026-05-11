@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "BillOfSale": {
+      "title": "Bill Of Sale",
+      "description": "Represents a vehicle bill of sale document.",
+      "type": "object",
+      "properties": {
+        "participants": {
+          "type": "array",
+          "description": "Array of user IDs who have access to this document (max 2).",
+          "items": { "type": "string" }
+        },
+        "creatorId": { "type": "string" },
+        "date": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "price": { "type": "string" },
+        "year": { "type": "string" },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "vin": { "type": "string" },
+        "mileage": { "type": "string" },
+        "conditionType": { "type": "string" },
+        "customConditions": { "type": "string" },
+        "sellerSignature": { "type": ["string", "null"] },
+        "buyerSignature": { "type": ["string", "null"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["participants", "creatorId"]
+    }
+  },
+  "firestore": {
+    "/billsOfSale/{billId}": {
+      "schema": { "$ref": "#/entities/BillOfSale" },
+      "description": "Collection of bill of sale documents."
+    }
+  }
+}

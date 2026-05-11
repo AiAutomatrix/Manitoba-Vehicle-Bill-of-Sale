@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidBillOfSale(data) {
+      return data.keys().hasAll(['participants', 'creatorId', 'date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'createdAt', 'updatedAt']) 
+        && data.keys().size() == 17
+        && data.participants is list 
+        && data.participants.size() >= 1 
+        && data.participants.size() <= 2
+        && data.participants[0] is string
+        && data.creatorId is string && data.creatorId.size() <= 128
+        && data.date is string && data.date.size() <= 64
+        && data.sellerName is string && data.sellerName.size() <= 256
+        && data.buyerName is string && data.buyerName.size() <= 256
+        && data.price is string && data.price.size() <= 64
+        && data.year is string && data.year.size() <= 64
+        && data.make is string && data.make.size() <= 128
+        && data.model is string && data.model.size() <= 128
+        && data.vin is string && data.vin.size() <= 64
+        && data.mileage is string && data.mileage.size() <= 64
+        && data.conditionType is string && data.conditionType.size() <= 64
+        && data.customConditions is string && data.customConditions.size() <= 2048
+        && (data.sellerSignature == null || (data.sellerSignature is string && data.sellerSignature.size() <= 1000000))
+        && (data.buyerSignature == null || (data.buyerSignature is string && data.buyerSignature.size() <= 1000000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /billsOfSale/{billId} {
+      allow get: if isSignedIn() && isValidId(billId) && (request.auth.uid in existing().participants);
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participants);
+
+      allow create: if isSignedIn() 
+        && isValidId(billId) 
+        && isValidBillOfSale(incoming())
+        && incoming().creatorId == request.auth.uid
+        && incoming().participants.size() >= 1 
+        && incoming().participants[0] == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn() 
+        && isValidId(billId)
+        && isValidBillOfSale(incoming())
+        && (request.auth.uid in existing().participants)
+        && incoming().creatorId == existing().creatorId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['participants', 'updatedAt'])
+            && incoming().participants.size() == 2
+            && incoming().participants[1] == request.auth.uid
+            && incoming().participants[0] == existing().participants[0]
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'updatedAt'])
+          ) ||
+          (
+            // When updating multiple things together (joining + updating) - actually let's stick to simple or just allow full updates if they are a participant
+            incoming().diff(existing()).affectedKeys().hasAny(['date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'participants', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+  }
+}
