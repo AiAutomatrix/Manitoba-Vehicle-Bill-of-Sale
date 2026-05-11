@@ -1,14 +1,21 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { Button } from './ui/button';
 
 interface SignaturePadProps {
   onEnd: (dataUrl: string | null) => void;
   label: string;
+  initialSignature?: string | null;
 }
 
-export function SignaturePad({ onEnd, label }: SignaturePadProps) {
+export function SignaturePad({ onEnd, label, initialSignature }: SignaturePadProps) {
   const sigPad = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    if (initialSignature && sigPad.current && sigPad.current.isEmpty()) {
+      sigPad.current.fromDataURL(initialSignature);
+    }
+  }, [initialSignature]);
 
   const clear = () => {
     sigPad.current?.clear();

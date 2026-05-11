@@ -56,6 +56,22 @@ export default function App() {
   );
 }
 
+const defaultFormData = {
+  date: new Date().toISOString().split('T')[0],
+  sellerName: '',
+  price: '',
+  buyerName: '',
+  year: '',
+  make: '',
+  model: '',
+  vin: '',
+  mileage: '',
+  conditionType: 'asis', // 'asis' or 'custom'
+  customConditions: '',
+  sellerSignature: null as string | null,
+  buyerSignature: null as string | null,
+};
+
 function BillOfSaleEditor() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -67,25 +83,14 @@ function BillOfSaleEditor() {
   const pdfRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    sellerName: '',
-    price: '',
-    buyerName: '',
-    year: '',
-    make: '',
-    model: '',
-    vin: '',
-    mileage: '',
-    conditionType: 'asis', // 'asis' or 'custom'
-    customConditions: '',
-    sellerSignature: null as string | null,
-    buyerSignature: null as string | null,
-  });
+  const [formData, setFormData] = useState(defaultFormData);
 
   useEffect(() => {
     if (!id || !user) {
-      if (!id) setIsLoaded(true); // New document
+      if (!id) {
+        setFormData({ ...defaultFormData });
+        setIsLoaded(true); // New document
+      }
       return;
     }
     
@@ -189,6 +194,26 @@ function BillOfSaleEditor() {
       handleFirestoreError(err, OperationType.CREATE, 'billsOfSale');
       toast.error('Failed to create document');
       return null;
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    try {
+      let docId = id;
+      if (!docId) {
+        docId = await handleCreateDocument();
+        if (docId) toast.success('Draft saved to cloud.');
+      } else {
+        const docRef = doc(db, 'billsOfSale', docId);
+        await updateDoc(docRef, { ...formData, updatedAt: serverTimestamp() });
+        toast.success('Draft updated in cloud.');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save draft.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -336,7 +361,8 @@ function BillOfSaleEditor() {
               <span className="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center text-xs">3</span> Finalize
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => signOut()}>Sign Out</Button>
+          <Button variant="outline" size="sm" onClick={() => navigate('/')}>New Bill of Sale</Button>
+          <Button variant="ghost" size="sm" onClick={() => signOut()}>Sign Out</Button>
         </div>
       </header>
 
@@ -455,10 +481,12 @@ function BillOfSaleEditor() {
             <div className="grid grid-cols-1 gap-6">
               <SignaturePad 
                 label="Seller's Signature" 
+                initialSignature={formData.sellerSignature}
                 onEnd={(data) => setFormData(prev => ({ ...prev, sellerSignature: data }))} 
               />
               <SignaturePad 
                 label="Buyer's Signature" 
+                initialSignature={formData.buyerSignature}
                 onEnd={(data) => setFormData(prev => ({ ...prev, buyerSignature: data }))} 
               />
             </div>
@@ -482,7 +510,10 @@ function BillOfSaleEditor() {
         <div className="text-xs text-slate-500 hidden sm:block">
           Saved automatically to Cloud <span className="font-medium">• Ready to share</span>
         </div>
-        <div className="flex gap-4 w-full sm:w-auto justify-end sm:justify-between">
+        <div className="flex gap-4 w-full sm:w-auto justify-end sm:justify-between flex-wrap">
+          <button onClick={handleSaveDraft} disabled={loading || saving} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-md border border-slate-200 transition-colors flex items-center justify-center flex-1 sm:flex-none">
+             Save Draft
+          </button>
           <button onClick={handleSaveAndEmail} disabled={loading || saving} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-md border border-transparent transition-colors flex items-center justify-center flex-1 sm:flex-none">
             <Mail className="w-4 h-4 mr-2" /> Share Link
           </button>
