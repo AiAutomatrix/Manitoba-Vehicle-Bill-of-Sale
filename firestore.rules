@@ -39,7 +39,8 @@ service cloud.firestore {
     }
 
     match /billsOfSale/{billId} {
-      allow get: if isSignedIn() && isValidId(billId) && (request.auth.uid in existing().participants);
+      // Allow any signed-in user with the link to view the document
+      allow get: if isSignedIn() && isValidId(billId);
       allow list: if isSignedIn() && (request.auth.uid in resource.data.participants);
 
       allow create: if isSignedIn() 
@@ -54,23 +55,28 @@ service cloud.firestore {
       allow update: if isSignedIn() 
         && isValidId(billId)
         && isValidBillOfSale(incoming())
-        && (request.auth.uid in existing().participants)
         && incoming().creatorId == existing().creatorId
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
         && (
+          // Case 1: Joining the document
           (
-            incoming().diff(existing()).affectedKeys().hasOnly(['participants', 'updatedAt'])
+            !(request.auth.uid in existing().participants)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['participants', 'updatedAt'])
             && incoming().participants.size() == 2
+            && existing().participants.size() < 2
             && incoming().participants[1] == request.auth.uid
             && incoming().participants[0] == existing().participants[0]
           ) ||
+          // Case 2: Existing participant updating details
           (
-            incoming().diff(existing()).affectedKeys().hasOnly(['date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'updatedAt'])
+            (request.auth.uid in existing().participants)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'updatedAt'])
           ) ||
+          // Case 3: Existing participant updating everything
           (
-            // When updating multiple things together (joining + updating) - actually let's stick to simple or just allow full updates if they are a participant
-            incoming().diff(existing()).affectedKeys().hasAny(['date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'participants', 'updatedAt'])
+            (request.auth.uid in existing().participants)
+            && incoming().diff(existing()).affectedKeys().hasAny(['date', 'sellerName', 'buyerName', 'price', 'year', 'make', 'model', 'vin', 'mileage', 'conditionType', 'customConditions', 'sellerSignature', 'buyerSignature', 'participants', 'updatedAt'])
           )
         );
 

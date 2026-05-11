@@ -63,6 +63,7 @@ function BillOfSaleEditor() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +84,10 @@ function BillOfSaleEditor() {
   });
 
   useEffect(() => {
-    if (!id || !user) return;
+    if (!id || !user) {
+      if (!id) setIsLoaded(true); // New document
+      return;
+    }
     
     const docRef = doc(db, 'billsOfSale', id);
     let unsubscribe = () => {};
@@ -132,6 +136,7 @@ function BillOfSaleEditor() {
               sellerSignature: serverData.sellerSignature ?? prev.sellerSignature,
               buyerSignature: serverData.buyerSignature ?? prev.buyerSignature,
             }));
+            setIsLoaded(true);
           }
         }, (error) => {
           handleFirestoreError(error, OperationType.GET, `billsOfSale/${id}`);
@@ -149,7 +154,7 @@ function BillOfSaleEditor() {
 
   // Debounced auto-save effect
   useEffect(() => {
-    if (!user || !id) return;
+    if (!user || !id || !isLoaded) return;
     
     const timeout = setTimeout(async () => {
       try {
@@ -165,7 +170,7 @@ function BillOfSaleEditor() {
     }, 2000);
 
     return () => clearTimeout(timeout);
-  }, [formData, id, user]);
+  }, [formData, id, user, isLoaded]);
 
   const handleCreateDocument = async () => {
     if (!user) return null;
