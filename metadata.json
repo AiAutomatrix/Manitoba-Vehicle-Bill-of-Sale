@@ -1,0 +1,6 @@
+{
+  "name": "Manitoba Vehicle Bill of Sale",
+  "description": "Create and download a Manitoba Vehicle Bill of Sale. Includes an AI feature to extract vehicle details from images and signatures.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
